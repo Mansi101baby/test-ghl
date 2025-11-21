@@ -21,6 +21,7 @@ export default function Home() {
       setError('');
       const response = await axios.post(`${API_URL}/ghl/initiate-auth`, {
         brandId,
+        redirectUri: `${window.location.origin}/oauth/callback`,
       });
       setAuthUrl(response.data.data.authorizationUrl);
       setLoading(false);
