@@ -23,6 +23,7 @@ export default function Home() {
         brandId,
         redirectUri: `${window.location.origin}/oauth/callback`,
       });
+
       setAuthUrl(response.data.data.authorizationUrl);
       setLoading(false);
     } catch (err: any) {
