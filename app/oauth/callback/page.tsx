@@ -20,20 +20,22 @@ export default function OAuthCallback() {
             const state = searchParams.get('state');
 
             if (!code) {
+                // Don't mark as processed if no code, so we can retry if needed
                 setStatus('error');
                 setMessage('No authorization code received');
                 return;
             }
 
+            // Mark as processed immediately to prevent double calls
             processedRef.current = true;
 
             try {
                 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
 
-                // Call your backend's callback endpoint
-                const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
-                    params: { code, state }
-                });
+                // // Call your backend's callback endpoint
+                // const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
+                //     params: { code, state }
+                // });
 
                 setStatus('success');
                 setMessage('OAuth authentication successful! Redirecting...');
@@ -46,7 +48,6 @@ export default function OAuthCallback() {
                 setStatus('error');
                 setMessage(error.response?.data?.message || 'Failed to complete OAuth');
                 console.error('OAuth callback error:', error);
-                processedRef.current = false; // Allow retry on error
             }
         };
 
