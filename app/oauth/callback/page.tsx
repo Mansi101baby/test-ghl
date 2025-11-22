@@ -41,10 +41,11 @@ function CallbackContent() {
             setLoading(true);
             setError('');
 
-            const response = await axios.post(`${API_URL}/ghl/exchange-token`, {
-                code,
-                state,
-                redirectUri: `${window.location.origin}/oauth/callback`,
+            const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
+                params: {
+                    code,
+                    state,
+                },
             });
 
             setTokenData(response.data.data);
