@@ -12,47 +12,47 @@ function OAuthCallbackContent() {
 
     const processedRef = useRef(false);
 
-    useEffect(() => {
-        const handleCallback = async () => {
-            if (processedRef.current) return;
+    // useEffect(() => {
+    //     const handleCallback = async () => {
+    //         if (processedRef.current) return;
 
-            const code = searchParams.get('code');
-            const state = searchParams.get('state');
+    //         const code = searchParams.get('code');
+    //         const state = searchParams.get('state');
 
-            if (!code) {
-                // Don't mark as processed if no code, so we can retry if needed
-                setStatus('error');
-                setMessage('No authorization code received');
-                return;
-            }
+    //         if (!code) {
+    //             // Don't mark as processed if no code, so we can retry if needed
+    //             setStatus('error');
+    //             setMessage('No authorization code received');
+    //             return;
+    //         }
 
-            // Mark as processed immediately to prevent double calls
-            processedRef.current = true;
+    //         // Mark as processed immediately to prevent double calls
+    //         processedRef.current = true;
 
-            try {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
+    //         try {
+    //             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
 
-                // Call your backend's callback endpoint
-                const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
-                    params: { code, state }
-                });
+    //             // Call your backend's callback endpoint
+    //             const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
+    //                 params: { code, state }
+    //             });
 
-                setStatus('success');
-                setMessage('OAuth authentication successful! Redirecting...');
+    //             setStatus('success');
+    //             setMessage('OAuth authentication successful! Redirecting...');
 
-                // Redirect back to home after 2 seconds
-                setTimeout(() => {
-                    router.push('/');
-                }, 2000);
-            } catch (error: any) {
-                setStatus('error');
-                setMessage(error.response?.data?.message || 'Failed to complete OAuth');
-                console.error('OAuth callback error:', error);
-            }
-        };
+    //             // Redirect back to home after 2 seconds
+    //             setTimeout(() => {
+    //                 router.push('/');
+    //             }, 2000);
+    //         } catch (error: any) {
+    //             setStatus('error');
+    //             setMessage(error.response?.data?.message || 'Failed to complete OAuth');
+    //             console.error('OAuth callback error:', error);
+    //         }
+    //     };
 
-        handleCallback();
-    }, [searchParams, router]);
+    //     handleCallback();
+    // }, [searchParams, router]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
