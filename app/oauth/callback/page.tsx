@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 
-export default function OAuthCallback() {
+function OAuthCallbackContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -32,10 +32,10 @@ export default function OAuthCallback() {
             try {
                 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
 
-                // // Call your backend's callback endpoint
-                // const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
-                //     params: { code, state }
-                // });
+                // Call your backend's callback endpoint
+                const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
+                    params: { code, state }
+                });
 
                 setStatus('success');
                 setMessage('OAuth authentication successful! Redirecting...');
@@ -96,5 +96,13 @@ export default function OAuthCallback() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function OAuthCallback() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <OAuthCallbackContent />
+        </Suspense>
     );
 }
