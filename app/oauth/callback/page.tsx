@@ -1,312 +1,99 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 
-interface TokenResponse {
-    accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
-    tokenType: string;
-    locationId?: string;
-    companyId?: string;
-}
-
-function CallbackContent() {
+export default function OAuthCallback() {
     const searchParams = useSearchParams();
-    const [params, setParams] = useState<{ [key: string]: string }>({});
-    const [tokenData, setTokenData] = useState<TokenResponse | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const router = useRouter();
+    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+    const [message, setMessage] = useState('Processing OAuth callback...');
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
+    const processedRef = useRef(false);
 
     useEffect(() => {
-        const entries = Array.from(searchParams.entries());
-        const paramsObj: { [key: string]: string } = {};
-        entries.forEach(([key, value]) => {
-            paramsObj[key] = value;
-        });
-        setParams(paramsObj);
+        const handleCallback = async () => {
+            if (processedRef.current) return;
 
-        // Automatically exchange code for tokens if code and state are present
-        if (paramsObj.code && paramsObj.state) {
-            exchangeCodeForTokens(paramsObj.code, paramsObj.state);
-        }
-    }, [searchParams]);
+            const code = searchParams.get('code');
+            const state = searchParams.get('state');
 
-    const exchangeCodeForTokens = async (code: string, state: string) => {
-        try {
-            setLoading(true);
-            setError('');
+            if (!code) {
+                setStatus('error');
+                setMessage('No authorization code received');
+                return;
+            }
 
-            const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
-                params: {
-                    code,
-                    state,
-                },
-            });
+            processedRef.current = true;
 
-            setTokenData(response.data.data);
-            setLoading(false);
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to exchange code for tokens');
-            setLoading(false);
-        }
-    };
+            try {
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
-    };
+                // Call your backend's callback endpoint
+                const response = await axios.get(`${API_URL}/ghl/oauth/callback`, {
+                    params: { code, state }
+                });
+
+                setStatus('success');
+                setMessage('OAuth authentication successful! Redirecting...');
+
+                // Redirect back to home after 2 seconds
+                setTimeout(() => {
+                    router.push('/');
+                }, 2000);
+            } catch (error: any) {
+                setStatus('error');
+                setMessage(error.response?.data?.message || 'Failed to complete OAuth');
+                console.error('OAuth callback error:', error);
+                processedRef.current = false; // Allow retry on error
+            }
+        };
+
+        handleCallback();
+    }, [searchParams, router]);
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-center">
-            <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-                    OAuth Callback
-                </h1>
-
-                {/* Loading State */}
-                {loading && (
-                    <div className="text-center py-8">
-                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                        <p className="mt-4 text-gray-600">Exchanging code for tokens...</p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+                {status === 'loading' && (
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Processing...</h2>
+                        <p className="text-gray-600">{message}</p>
                     </div>
                 )}
 
-                {/* Error State */}
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-                        <p className="font-semibold">Error:</p>
-                        <p>{error}</p>
-                    </div>
-                )}
-
-                {/* Token Data Display */}
-                {tokenData && !loading && (
-                    <div className="mb-6">
-                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
-                            <p className="font-semibold">✅ Successfully obtained tokens!</p>
+                {status === 'success' && (
+                    <div className="text-center">
+                        <div className="text-green-500 mb-4">
+                            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
                         </div>
-
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">Token Information</h2>
-                        <div className="space-y-4">
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                    Access Token
-                                </label>
-                                <div className="flex items-center justify-between gap-4">
-                                    <code className="text-sm font-mono text-blue-600 break-all">
-                                        {tokenData.accessToken}
-                                    </code>
-                                    <button
-                                        onClick={() => copyToClipboard(tokenData.accessToken)}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                                        title="Copy value"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                            />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                    Refresh Token
-                                </label>
-                                <div className="flex items-center justify-between gap-4">
-                                    <code className="text-sm font-mono text-blue-600 break-all">
-                                        {tokenData.refreshToken}
-                                    </code>
-                                    <button
-                                        onClick={() => copyToClipboard(tokenData.refreshToken)}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                                        title="Copy value"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                            />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                        Expires In
-                                    </label>
-                                    <p className="text-sm font-mono text-gray-900">
-                                        {tokenData.expiresIn} seconds
-                                    </p>
-                                </div>
-
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                        Token Type
-                                    </label>
-                                    <p className="text-sm font-mono text-gray-900">
-                                        {tokenData.tokenType}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {tokenData.locationId && (
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                        Location ID
-                                    </label>
-                                    <div className="flex items-center justify-between gap-4">
-                                        <code className="text-sm font-mono text-blue-600 break-all">
-                                            {tokenData.locationId}
-                                        </code>
-                                        <button
-                                            onClick={() => copyToClipboard(tokenData.locationId!)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                                            title="Copy value"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {tokenData.companyId && (
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                        Company ID
-                                    </label>
-                                    <div className="flex items-center justify-between gap-4">
-                                        <code className="text-sm font-mono text-blue-600 break-all">
-                                            {tokenData.companyId}
-                                        </code>
-                                        <button
-                                            onClick={() => copyToClipboard(tokenData.companyId!)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                                            title="Copy value"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Success!</h2>
+                        <p className="text-gray-600">{message}</p>
                     </div>
                 )}
 
-                {/* Original Parameters Display */}
-                {!loading && Object.keys(params).length > 0 && (
-                    <div className="mb-6">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">OAuth Parameters</h2>
-                        <div className="space-y-4">
-                            {Object.entries(params).map(([key, value]) => (
-                                <div key={key} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <label className="block text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                                        {key}
-                                    </label>
-                                    <div className="flex items-center justify-between gap-4">
-                                        <code className="text-sm font-mono text-blue-600 break-all">
-                                            {value}
-                                        </code>
-                                        <button
-                                            onClick={() => copyToClipboard(value)}
-                                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                                            title="Copy value"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                {status === 'error' && (
+                    <div className="text-center">
+                        <div className="text-red-500 mb-4">
+                            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
+                        <p className="text-gray-600">{message}</p>
+                        <button
+                            onClick={() => router.push('/')}
+                            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                        >
+                            Go Back
+                        </button>
                     </div>
                 )}
-
-                {/* No parameters received */}
-                {!loading && Object.keys(params).length === 0 && (
-                    <p className="text-center text-gray-500 py-8">No parameters received.</p>
-                )}
-
-                <div className="mt-8 text-center">
-                    <a
-                        href="/"
-                        className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                    >
-                        Return to Home
-                    </a>
-                </div>
             </div>
         </div>
-    );
-}
-
-export default function CallbackPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <CallbackContent />
-        </Suspense>
     );
 }
