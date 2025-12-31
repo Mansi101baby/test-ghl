@@ -12,7 +12,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.phonxai.com/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dev-backend.phonxai.com/api';
 
   // Step 1: Initiate OAuth
   const initiateAuth = async () => {
